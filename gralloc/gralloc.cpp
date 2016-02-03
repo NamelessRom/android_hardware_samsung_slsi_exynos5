@@ -187,8 +187,8 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
     unsigned int l_ion_flags = ion_flags;
     unsigned int heap_mask = _select_heap(usage);
 
-    ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x heap_mask=0x%x", __FUNCTION__,
-          format, usage, w, h, ion_flags, heap_mask);
+    //ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x heap_mask=0x%x", __FUNCTION__,
+    //      format, usage, w, h, ion_flags, heap_mask);
 
     switch (format) {
         case HAL_PIXEL_FORMAT_RGBA_8888: //0x1
@@ -213,7 +213,7 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
             size = w * h;
             break;
         default:
-            ALOGD("%s format=0x%x won't be handled here...", __FUNCTION__);
+            //ALOGD("%s format=0x%x won't be handled here...", __FUNCTION__);
             return -EINVAL;
     }
 
@@ -264,8 +264,8 @@ static int gralloc_alloc_framework_yuv(int ionfd, int w, int h, int format, int 
     int err, fd;
     unsigned int heap_mask = _select_heap(usage);
 
-    ALOGD("%s fmt=0x%x fmt2=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x  heap_mask=0x%x", __FUNCTION__,
-          format, format2, usage, w, h, ion_flags, heap_mask);
+    //ALOGD("%s fmt=0x%x fmt2=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x  heap_mask=0x%x", __FUNCTION__,
+    //      format, format2, usage, w, h, ion_flags, heap_mask);
 
     switch (format) {
         case HAL_PIXEL_FORMAT_YV12: //0x32315659
@@ -278,7 +278,7 @@ static int gralloc_alloc_framework_yuv(int ionfd, int w, int h, int format, int 
             size = (*stride * h * 3 / 2) + ext_size;
             break;
         default:
-            ALOGE("invalid yuv format %d\n", format);
+            ALOGE("%s: invalid yuv format %d\n", __FUNCTION__, format);
             return -EINVAL;
     }
 
@@ -304,13 +304,13 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
     size_t luma_vstride;
     unsigned int heap_mask = _select_heap(usage);
 
-    ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x heap_mask=0x%x", __FUNCTION__,
-          format, usage, w, h, ion_flags, heap_mask);
+    //ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x heap_mask=0x%x", __FUNCTION__,
+    //      format, usage, w, h, ion_flags, heap_mask);
 
     *stride = ALIGN(w, 16);
 
     if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
-        ALOGV("HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED : usage(%x), flags(%x)\n", usage, ion_flags);
+        //ALOGV("HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED : usage(%x), flags(%x)\n", usage, ion_flags);
         if ((usage & GRALLOC_USAGE_HW_CAMERA_ZSL) == GRALLOC_USAGE_HW_CAMERA_ZSL) {
             format2 = HAL_PIXEL_FORMAT_YCbCr_422_I; // YUYV
         } else {
@@ -395,7 +395,7 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
     if (err)
         return err;
     if (planes == 1) {
-         ALOGD("%s planes=%d size=%d", __FUNCTION__, planes, luma_size);
+         //ALOGD("%s planes=%d size=%d", __FUNCTION__, planes, luma_size);
         *hnd = new private_handle_t(fd, luma_size, usage, w, h,
                                     format, format2, *stride, luma_vstride);
     } else {
@@ -403,7 +403,7 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
         if (err)
             goto err1;
         if (planes == 3) {
-            ALOGD("%s planes=%d luma_size=%d chroma_size=%d", __FUNCTION__, planes, luma_size, chroma_size);
+            //ALOGD("%s planes=%d luma_size=%d chroma_size=%d", __FUNCTION__, planes, luma_size, chroma_size);
             err = ion_alloc_fd(ionfd, chroma_size, 0, heap_mask, ion_flags, &fd2);
             if (err)
                 goto err2;
@@ -411,7 +411,7 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
             *hnd = new private_handle_t(fd, fd1, fd2, luma_size, usage, w, h,
                                         format, format2, *stride, luma_vstride);
         } else {
-            ALOGD("%s planes=%d luma_size=%d chroma_size=%d", __FUNCTION__, planes, luma_size, chroma_size);
+            //ALOGD("%s planes=%d luma_size=%d chroma_size=%d", __FUNCTION__, planes, luma_size, chroma_size);
             *hnd = new private_handle_t(fd, fd1, luma_size, usage, w, h, format,
                                         format2, *stride, luma_vstride);
         }
@@ -443,8 +443,8 @@ static int gralloc_alloc(alloc_device_t* dev,
     gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>
         (dev->common.module);
 
-    ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d", __FUNCTION__,
-          format, usage, w, h);
+    //ALOGD("%s fmt=0x%x usage=0x%x w=%d h=%d", __FUNCTION__,
+    //      format, usage, w, h);
 
     if ( (l_usage & GRALLOC_USAGE_SW_READ_MASK) == GRALLOC_USAGE_SW_READ_OFTEN ) {
         ion_flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC;
@@ -491,7 +491,7 @@ static int gralloc_free(alloc_device_t* dev,
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     private_handle_t const* hnd = reinterpret_cast<private_handle_t const*>(handle);
     gralloc_module_t* module = reinterpret_cast<gralloc_module_t*>(dev->common.module);
@@ -515,7 +515,7 @@ static int gralloc_close(struct hw_device_t *dev)
 {
     gralloc_context_t* ctx = reinterpret_cast<gralloc_context_t*>(dev);
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     if (ctx) {
         /* TODO: keep a list of all buffer_handle_t created, and free them
@@ -531,14 +531,14 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
 {
     int status = -EINVAL;
 
-#if defined(__aarch64__)
+/*#if defined(__aarch64__)
     ALOGD("%s 64 bit name=%s", __FUNCTION__, name);
 #else
     ALOGD("%s name=%s", __FUNCTION__, name);
-#endif
+#endif*/
 
-    ALOGD("%s sizeof(private_handle_t)=%d sizeof(native_handle_t)=%d", __FUNCTION__, sizeof(private_handle_t), sizeof(native_handle_t));
-    ALOGD("%s sNumInts=%d needed sNumInts=%d", __FUNCTION__, private_handle_t::sNumInts(), (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - private_handle_t::sNumFds));
+    //ALOGD("%s sizeof(private_handle_t)=%d sizeof(native_handle_t)=%d", __FUNCTION__, sizeof(private_handle_t), sizeof(native_handle_t));
+    //ALOGD("%s sNumInts=%d needed sNumInts=%d", __FUNCTION__, private_handle_t::sNumInts(), (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - private_handle_t::sNumFds));
 
     if (!strcmp(name, GRALLOC_HARDWARE_GPU0)) {
         gralloc_context_t *dev;
@@ -560,7 +560,7 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         if (p->ionfd == -1)
             p->ionfd = ion_open();
 
-        ALOGD("%s ionfd=%d", __FUNCTION__, p->ionfd);
+        //ALOGD("%s ionfd=%d", __FUNCTION__, p->ionfd);
 
         *device = &dev->device.common;
         status = 0;

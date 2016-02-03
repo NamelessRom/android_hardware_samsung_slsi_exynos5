@@ -96,7 +96,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
     struct decon_win_config_data win_data;
     struct decon_win_config *cfg = win_data.config;
 
-    ALOGD("%s E", __FUNCTION__);
+    //ALOGD("%s E", __FUNCTION__);
 
     memset(cfg, 0, sizeof(win_data.config));
     for (size_t i = 0; i < NUM_HW_WINDOWS; i++)
@@ -117,7 +117,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
     cfg[0].format = exynos5_format_to_decon(handle->format);
     cfg[0].fence_fd = -1;
 
-    ALOGD("%s format=0x%x", __FUNCTION__, handle->format);
+    //ALOGD("%s format=0x%x", __FUNCTION__, handle->format);
 
     int ret = ioctl(mod->fb_fd, S3CFB_WIN_CONFIG, &win_data);
     for (size_t i = 0; i < NUM_HW_WINDOWS; i++)
@@ -125,7 +125,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
             close(cfg[i].fence_fd);
     if (ret < 0) {
         ALOGE("ioctl S3CFB_WIN_CONFIG failed: %s", strerror(errno));
-        ALOGD("%s X", __FUNCTION__);
+        //ALOGD("%s X", __FUNCTION__);
         return ret;
     }
 
@@ -140,7 +140,7 @@ static int fb_post(struct framebuffer_device_t* dev, buffer_handle_t buffer)
         }
     }
 
-    ALOGD("%s X", __FUNCTION__);
+    //ALOGD("%s X", __FUNCTION__);
     return 0;
 }
 
@@ -150,7 +150,7 @@ static int fb_close(struct hw_device_t *dev)
 {
     fb_context_t* ctx = (fb_context_t*)dev;
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     if (ctx) {
         free(ctx);
@@ -161,31 +161,30 @@ static int fb_close(struct hw_device_t *dev)
 int init_fb(struct private_module_t* module)
 {
     int fd = -1;
-    int i = 0;
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     fd = open("/dev/graphics/fb0", O_RDWR);
     if (fd < 0) {
-        ALOGE("/dev/graphics/fb0 Open fail");
+        ALOGE("%s: /dev/graphics/fb0 Open fail", __FUNCTION__);
         return -errno;
     }
 
     struct fb_fix_screeninfo finfo;
     if (ioctl(fd, FBIOGET_FSCREENINFO, &finfo) == -1) {
-        ALOGE("Fail to get FB Screen Info");
+        ALOGE("%s: Fail to get FB Screen Info", __FUNCTION__);
         close(fd);
         return -errno;
     }
 
     struct fb_var_screeninfo info;
     if (ioctl(fd, FBIOGET_VSCREENINFO, &info) == -1) {
-        ALOGE("First, Fail to get FB VScreen Info");
+        ALOGE("%s: First, Fail to get FB VScreen Info", __FUNCTION__);
         close(fd);
         return -errno;
     }
 
-    ALOGD("%s res=(%d,%d) virt_res=(%d,%d) offset(%d,%d) bpp=%d grayscale=%d nonstd=%d activate=0x%x \
+    /* ALOGD("%s res=(%d,%d) virt_res=(%d,%d) offset(%d,%d) bpp=%d grayscale=%d nonstd=%d activate=0x%x \
                 (%d,%d) accel=0x%x pixclock=0x%x margin(%d-%d,%d-%d) len(%d,%d) sync=%d vmode=%d \
                 rotate=%d colorspace=%d reserved={%d,%d,%d,%d}", __FUNCTION__,
                 info.xres, info.yres, info.xres_virtual, info.yres_virtual,
@@ -194,7 +193,7 @@ int init_fb(struct private_module_t* module)
                 info.left_margin, info.right_margin, info.upper_margin, info.lower_margin,
                 info.hsync_len, info.vsync_len, info.sync, info.vmode,
                 info.rotate, info.colorspace,
-                info.reserved[0], info.reserved[1], info.reserved[2], info.reserved[3]);
+                info.reserved[0], info.reserved[1], info.reserved[2], info.reserved[3]); */
 
     info.reserved[0] = info.xres;
     info.reserved[1] = info.yres;
@@ -234,7 +233,7 @@ int init_fb(struct private_module_t* module)
 #endif
 
     if (ioctl(fd, FBIOPUT_VSCREENINFO, &info) == -1) {
-        ALOGW("FBIOPUT_VSCREENINFO failed");
+        ALOGW("%s: FBIOPUT_VSCREENINFO failed", __FUNCTION__);
     }
 
     int32_t refreshRate = 1000000000000000LLU /
@@ -290,18 +289,18 @@ int fb_device_open(hw_module_t const* module, const char* name,
     int format = HAL_PIXEL_FORMAT_RGBA_8888;
 #endif
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     alloc_device_t* gralloc_device;
     status = gralloc_open(module, &gralloc_device);
     if (status < 0) {
-        ALOGE("Fail to Open gralloc device");
+        ALOGE("%s: Fail to Open gralloc device", __FUNCTION__);
         return status;
     }
 
     framebuffer_device_t *dev = (framebuffer_device_t *)malloc(sizeof(framebuffer_device_t));
     if (dev == NULL) {
-        ALOGE("Failed to allocate memory for dev");
+        ALOGE("%s: Failed to allocate memory for dev", __FUNCTION__);
         gralloc_close(gralloc_device);
         return status;
     }
@@ -309,7 +308,7 @@ int fb_device_open(hw_module_t const* module, const char* name,
     private_module_t* m = (private_module_t*)module;
     status = init_fb(m);
     if (status < 0) {
-        ALOGE("Fail to init framebuffer");
+        ALOGE("%s: Fail to init framebuffer", __FUNCTION__);
         free(dev);
         gralloc_close(gralloc_device);
         return status;
