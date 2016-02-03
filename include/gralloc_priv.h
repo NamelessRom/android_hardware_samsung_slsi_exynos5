@@ -111,10 +111,6 @@ struct private_handle_t {
 
     int     exynosNumInts;
 
-//#if defined(__aarch64__)
-//    int dummy[4];
-//#endif
-
 #ifdef __cplusplus
     static inline int sNumInts() {
         return (((sizeof(private_handle_t) - sizeof(native_handle_t))/sizeof(int)) - sNumFds);
@@ -133,7 +129,7 @@ struct private_handle_t {
         numInts = sNumInts() + 2 + numIntsDelta;
         exynosNumInts = sNumInts() + 2;
         numFds = sNumFds - 2;
-        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
 
     private_handle_t(int fd, int fd1, int size, int flags, int w,
@@ -147,7 +143,7 @@ struct private_handle_t {
         numInts = sNumInts() + 1 + numIntsDelta;
         exynosNumInts = sNumInts() + 1;
         numFds = sNumFds - 1;
-        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
 
     private_handle_t(int fd, int fd1, int fd2, int size, int flags, int w,
@@ -161,7 +157,7 @@ struct private_handle_t {
         numInts = sNumInts() + numIntsDelta;
         exynosNumInts = sNumInts();
         numFds = sNumFds;
-        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
     ~private_handle_t() {
         magic = 0;
@@ -175,8 +171,8 @@ struct private_handle_t {
             hnd->magic != sMagic) 
         {
             ALOGE("gralloc: %s invalid gralloc handle (at %p)", __func__, reinterpret_cast<void *>(const_cast<native_handle *>(h)));
-            ALOGE("gralloc: version=%d(%d) numInts=%d(%d) numFds=%d(%d) magic=%d(%d)", 
-                  h->version, sizeof(native_handle), hnd->numInts, sNumInts, hnd->numFds, sNumFds, hnd->magic, sMagic);
+            //ALOGE("gralloc: version=%d(%d) numInts=%d(%d) numFds=%d(%d) magic=%d(%d)", 
+            //      h->version, sizeof(native_handle), hnd->numInts, sNumInts, hnd->numFds, sNumFds, hnd->magic, sMagic);
             return -EINVAL;
         }
         return 0;

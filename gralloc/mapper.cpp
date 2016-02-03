@@ -73,8 +73,8 @@ static int c_size_get(private_handle_t* hnd)
         size = 0;
     }
 
-    ALOGD("%s fmt=0x%x size=%d val=%d 1<<val=0x%x", __FUNCTION__, 
-           hnd->format, size, val, 1<<val);
+    //ALOGD("%s fmt=0x%x size=%d val=%d 1<<val=0x%x", __FUNCTION__, 
+    //       hnd->format, size, val, 1<<val);
     return size;
 }
 
@@ -91,7 +91,7 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
     int size = 0;
     private_handle_t* hnd = (private_handle_t*)handle;
 
-    ALOGD("%s flags=0x%x", __FUNCTION__, hnd->flags);
+    //ALOGD("%s flags=0x%x", __FUNCTION__, hnd->flags);
 
     size = c_size_get(hnd);
 
@@ -115,8 +115,8 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
         return -errno;
     }
 
-    ALOGD("%s: base %p %d %d %d %d\n", __FUNCTION__, mappedAddress, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    //ALOGD("%s: base %p %d %d %d %d\n", __FUNCTION__, mappedAddress, hnd->size,
+    //      hnd->width, hnd->height, hnd->stride);
 
     hnd->base = (uint64_t) mappedAddress;
     ion_sync_fd(getIonFd(module), hnd->fd);
@@ -125,8 +125,8 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
         mappedAddress = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED,
                              hnd->fd1, 0);
 
-        ALOGD("%s: base1 %p %d %d %d %d\n", __FUNCTION__, mappedAddress, size,
-              hnd->width, hnd->height, hnd->stride);
+        //ALOGD("%s: base1 %p %d %d %d %d\n", __FUNCTION__, mappedAddress, size,
+        //      hnd->width, hnd->height, hnd->stride);
 
         hnd->base1 = (uint64_t) mappedAddress;
         ion_sync_fd(getIonFd(module), hnd->fd1);
@@ -136,8 +136,8 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
         mappedAddress = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED,
                              hnd->fd2, 0);
 
-        ALOGD("%s: base2 %p %d %d %d %d\n", __FUNCTION__, mappedAddress, size,
-              hnd->width, hnd->height, hnd->stride);
+        //ALOGD("%s: base2 %p %d %d %d %d\n", __FUNCTION__, mappedAddress, size,
+        //      hnd->width, hnd->height, hnd->stride);
 
         hnd->base2 = (uint64_t) mappedAddress;
         ion_sync_fd(getIonFd(module), hnd->fd2);
@@ -151,7 +151,7 @@ int grallocUnmap(gralloc_module_t const* module, buffer_handle_t handle)
     int size = 0;
     private_handle_t* hnd = (private_handle_t*)handle;
 
-    ALOGD("%s hnd->base=0x%x", __FUNCTION__, hnd->base);
+    //ALOGD("%s hnd->base=0x%x", __FUNCTION__, hnd->base);
 
     if (!hnd->base)
         return 0;
@@ -202,8 +202,8 @@ int gralloc_register_buffer(gralloc_module_t const* module,
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    //ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
+    //      hnd->width, hnd->height, hnd->stride);
 
     int mapret;
     mapret = grallocMap(module,handle);
@@ -211,16 +211,16 @@ int gralloc_register_buffer(gralloc_module_t const* module,
     int ret;
     ret = ion_import(getIonFd(module), hnd->fd, &hnd->handle);
     if (ret)
-        ALOGE("error importing handle %d %x\n", hnd->fd, hnd->format);
+        ALOGE("%s: error importing handle %d %x\n", __FUNCTION__, hnd->fd, hnd->format);
     if (hnd->fd1 >= 0) {
         ret = ion_import(getIonFd(module), hnd->fd1, &hnd->handle1);
         if (ret)
-            ALOGE("error importing handle1 %d %x\n", hnd->fd1, hnd->format);
+            ALOGE("%s: error importing handle1 %d %x\n", __FUNCTION__, hnd->fd1, hnd->format);
     }
     if (hnd->fd2 >= 0) {
         ret = ion_import(getIonFd(module), hnd->fd2, &hnd->handle2);
         if (ret)
-            ALOGE("error importing handle2 %d %x\n", hnd->fd2, hnd->format);
+            ALOGE("%s: error importing handle2 %d %x\n", __FUNCTION__, hnd->fd2, hnd->format);
     }
 
     return mapret;
@@ -233,8 +233,8 @@ int gralloc_unregister_buffer(gralloc_module_t const* module,
         return -EINVAL;
 
     private_handle_t* hnd = (private_handle_t*)handle;
-    ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
-          hnd->width, hnd->height, hnd->stride);
+    //ALOGV("%s: base %p %d %d %d %d\n", __func__, hnd->base, hnd->size,
+    //      hnd->width, hnd->height, hnd->stride);
 
     grallocUnmap(module, handle);
 
@@ -261,8 +261,8 @@ int gralloc_lock(gralloc_module_t const* module,
     // flushed or invalidated depending on the usage bits and the
     // hardware.
 
-    ALOGD("%s usage=0x%x l=%d t=%d w=%d h=%d", __FUNCTION__,
-          usage, l, t, w, h);
+    //ALOGD("%s usage=0x%x l=%d t=%d w=%d h=%d", __FUNCTION__,
+    //      usage, l, t, w, h);
 
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
@@ -295,7 +295,7 @@ int gralloc_unlock(gralloc_module_t const* module,
     // implementation. typically this is used to flush the data cache.
     private_handle_t* hnd = (private_handle_t*)handle;
 
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
@@ -316,7 +316,7 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
             int l, int t, int w, int h,
             struct android_ycbcr *ycbcr)
 {
-    ALOGD("%s", __FUNCTION__);
+    //ALOGD("%s", __FUNCTION__);
 
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
@@ -344,7 +344,7 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
             ycbcr->cstride = hnd->width;
             ycbcr->chroma_step = 2;
 
-            ALOGD("%s flags=0x%x y=0x%x cb=0x%x cr=0x%x", __FUNCTION__, hnd->flags, ycbcr->y, ycbcr->cb, ycbcr->cr);
+            //ALOGD("%s flags=0x%x y=0x%x cb=0x%x cr=0x%x", __FUNCTION__, hnd->flags, ycbcr->y, ycbcr->cb, ycbcr->cr);
         } else {
             ALOGE("%s wrong format %d", __FUNCTION__, hnd->format);
             return -EINVAL;
