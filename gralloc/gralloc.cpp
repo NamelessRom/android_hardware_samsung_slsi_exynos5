@@ -343,7 +343,7 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
         }
     }
 
-    switch (format) {
+    switch (format2) {
         case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M: //0x11d
         case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M: //0x105
         case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M_FULL: //0x11e
