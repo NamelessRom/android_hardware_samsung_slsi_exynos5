@@ -1,6 +1,4 @@
-#
-#
-# Copyright (C) 2009 The Android Open Source Project
+# Copyright (C) 2013 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,23 +11,29 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
+LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
 
-exynos5_dirs := \
-	gralloc \
-	libhwc \
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_MODULE := libhwjpeg
+
+LOCAL_C_INCLUDES := \
+	$(LOCAL_PATH)/../include \
+	$(TOP)/hardware/samsung_slsi/exynos/libexynosutils \
+	$(TOP)/hardware/samsung_slsi/exynos/include
+
+LOCAL_SRC_FILES := \
+	ExynosJpegEncoder.cpp \
+	ExynosJpegDecoder.cpp \
+	ExynosJpegBase.cpp \
+	ExynosJpegBase_Dependence.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libutils \
+	liblog \
 	libexynosutils \
-	libv4l2 \
-	libscaler \
-	libmpp \
-	libgscaler \
-	libion_exynos \
-	libswconverter \
-	libcsc \
-	libhwjpeg
+	libion_exynos
 
-include $(call all-named-subdir-makefiles,$(exynos5_dirs))
-
-endif
+include $(BUILD_SHARED_LIBRARY)
