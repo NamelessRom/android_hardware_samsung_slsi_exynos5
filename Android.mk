@@ -25,7 +25,9 @@ exynos5_dirs := \
 	libscaler \
 	libgscaler \
 	libmpp \
-	libion_exynos
+	libion_exynos \
+	libswconverter \
+	libcsc
 
 include $(call all-named-subdir-makefiles,$(exynos5_dirs))
 
