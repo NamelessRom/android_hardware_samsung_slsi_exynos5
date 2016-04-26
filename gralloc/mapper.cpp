@@ -37,6 +37,8 @@
 
 #include "exynos_format.h"
 
+#include <dlfcn.h>
+
 /*****************************************************************************/
 
 static int c_size_get(private_handle_t* hnd)
@@ -93,6 +95,29 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
     private_handle_t* hnd = (private_handle_t*)handle;
 
     ALOGD_IF(DBG_LVL > 0, "%s flags=0x%x", __FUNCTION__, hnd->flags);
+
+/*#if defined(__aarch64__)
+    void *libhandle;
+    const char *error;
+    int (*grallocmap) (gralloc_module_t const* module, buffer_handle_t handle);
+
+    libhandle = dlopen("/system/lib64/hw/gralloc.exynos5.so.orig", RTLD_LAZY);
+    if (!libhandle) {
+        ALOGD("%s: could not open /system/lib64/hw/gralloc.exynos5.so.orig: %s\n", __FUNCTION__, dlerror());
+    } else {
+        dlerror();    // Clear any existing error
+        *(void **) (&grallocmap) = dlsym(libhandle, "_Z10grallocMapPK16gralloc_module_tP16private_handle_t");
+
+        if ((error = dlerror()) != NULL) {
+            ALOGE("%s: after dlsym: %s", __FUNCTION__, error);
+        } else {
+            int rc = (*grallocmap)(module, handle);
+            ALOGE("%s: success call to blob grallocMap, rc=%d", __FUNCTION__, rc);
+            dlclose(libhandle);
+            return rc;
+        }
+    }
+#endif*/
 
     size = c_size_get(hnd);
 
