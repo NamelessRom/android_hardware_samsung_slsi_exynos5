@@ -1,6 +1,4 @@
-#
-#
-# Copyright (C) 2009 The Android Open Source Project
+# Copyright (C) 2008 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,20 +11,19 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-#
 
-ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
+LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
 
-exynos5_dirs := \
-	gralloc \
-	libhwc \
-	libexynosutils \
-	libv4l2 \
-	libscaler \
-	libgscaler \
-	libmpp \
-	libion_exynos
+LOCAL_C_INCLUDES += $(LOCAL_PATH)/../include
 
-include $(call all-named-subdir-makefiles,$(exynos5_dirs))
+LOCAL_SRC_FILES:= \
+	libion.cpp
 
-endif
+LOCAL_CFLAGS += -DGAIA_FW_BETA
+
+LOCAL_MODULE := libion_exynos
+
+LOCAL_MODULE_TAGS := optional
+
+include $(BUILD_SHARED_LIBRARY)
