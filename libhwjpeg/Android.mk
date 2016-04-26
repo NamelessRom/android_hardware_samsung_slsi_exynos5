@@ -12,23 +12,27 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_VENDOR),samsung)
-ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
+LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
 
-exynos5_dirs := \
-	gralloc \
-	libhwc \
+LOCAL_MODULE_TAGS := optional
+
+LOCAL_MODULE := libhwjpeg
+
+LOCAL_C_INCLUDES := \
+	$(LOCAL_PATH)/../include \
+	$(LOCAL_PATH)/../libexynosutils
+
+LOCAL_SRC_FILES := \
+	ExynosJpegEncoder.cpp \
+	ExynosJpegDecoder.cpp \
+	ExynosJpegBase.cpp \
+	ExynosJpegBase_Dependence.cpp
+
+LOCAL_SHARED_LIBRARIES := \
+	libutils \
+	liblog \
 	libexynosutils \
-	libv4l2 \
-	libscaler \
-	libgscaler \
-	libmpp \
-	libion_exynos \
-	libswconverter \
-	libcsc \
-	libhwjpeg
+	libion_exynos
 
-include $(call all-named-subdir-makefiles,$(exynos5_dirs))
-
-endif
-endif
+include $(BUILD_SHARED_LIBRARY)
