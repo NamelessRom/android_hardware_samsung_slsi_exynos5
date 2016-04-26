@@ -20,7 +20,9 @@ exynos5_dirs := \
 	libhwc \
 	libexynosutils \
 	libv4l2 \
-	libscaler
+	libscaler \
+	libgscaler \
+	libmpp
 
 include $(call all-named-subdir-makefiles,$(exynos5_dirs))
 
