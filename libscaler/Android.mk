@@ -12,17 +12,22 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_VENDOR),samsung)
-ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
+ifeq ($(filter-out exynos5,$(TARGET_BOARD_PLATFORM)),)
 
-exynos5_dirs := \
-	gralloc \
-	libhwc \
-	libexynosutils \
-	libv4l2 \
-	libscaler
+LOCAL_PATH:= $(call my-dir)
+include $(CLEAR_VARS)
 
-include $(call all-named-subdir-makefiles,$(exynos5_dirs))
+LOCAL_PRELINK_MODULE := false
+LOCAL_SHARED_LIBRARIES := liblog libutils libcutils libexynosutils libexynosv4l2
 
-endif
+LOCAL_C_INCLUDES := \
+	$(LOCAL_PATH)/../include \
+	$(LOCAL_PATH)/../libexynosutils
+
+LOCAL_SRC_FILES := libscaler.cpp
+
+LOCAL_MODULE_TAGS := eng
+LOCAL_MODULE := libexynosscaler
+include $(BUILD_SHARED_LIBRARY)
+
 endif
