@@ -1,4 +1,4 @@
-# Copyright (C) 2013 The Android Open Source Project
+# Copyright (C) 2012 The Android Open Source Project
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -12,14 +12,21 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-ifeq ($(BOARD_VENDOR),samsung)
-ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
 
-exynos5_dirs := \
-	gralloc \
-	libhwc
+LOCAL_PATH := $(call my-dir)
 
-include $(call all-named-subdir-makefiles,$(exynos5_dirs))
+# HAL module implemenation stored in
+# hw/<OVERLAY_HARDWARE_MODULE_ID>.<ro.product.board>.so
+include $(CLEAR_VARS)
 
-endif
-endif
+LOCAL_MODULE_RELATIVE_PATH := hw
+LOCAL_SHARED_LIBRARIES := liblog libEGL libhardware
+
+LOCAL_C_INCLUDES := \
+    $(LOCAL_PATH)/../include
+
+LOCAL_SRC_FILES := hwcomposer.cpp
+LOCAL_MODULE := hwcomposer.exynos5
+LOCAL_CFLAGS:= -DLOG_TAG=\"hwcomposer\"
+LOCAL_MODULE_TAGS := optional
+include $(BUILD_SHARED_LIBRARY)
