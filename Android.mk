@@ -17,7 +17,8 @@ ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
 
 exynos5_dirs := \
 	gralloc \
-	libhwc
+	libhwc \
+	libexynosutils
 
 include $(call all-named-subdir-makefiles,$(exynos5_dirs))
 
