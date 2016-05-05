@@ -19,7 +19,6 @@ ifeq ($(TARGET_BOARD_PLATFORM),exynos5)
 
 exynos5_dirs := \
 	gralloc \
-	libhwc \
 	libexynosutils \
 	libv4l2 \
 	libscaler \
@@ -29,7 +28,16 @@ exynos5_dirs := \
 	libswconverter \
 	libcsc \
 	libhwjpeg \
-	libfimg
+	libfimg \
+	libdisplay \
+	libdisplaymodule \
+#	libhdmi \
+	libhwc \
+	libhwcService \
+	libhwcmodule \
+	libhwcutils \
+	libhwcutilsmodule \
+	libvirtualdisplay
 
 include $(call all-named-subdir-makefiles,$(exynos5_dirs))
 
