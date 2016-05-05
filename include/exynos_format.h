@@ -51,6 +51,7 @@ enum {
     HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_P         = 0x11F,
     HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP        = 0x120,
 
+    HAL_PIXEL_FORMAT_EXYNOS_UNK                 = 0x121,   /* NV12M */
     HAL_PIXEL_FORMAT_EXYNOS_MAX
 };
 
