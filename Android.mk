@@ -28,7 +28,8 @@ exynos5_dirs := \
 	libion_exynos \
 	libswconverter \
 	libcsc \
-	libhwjpeg
+	libhwjpeg \
+	libfimg
 
 include $(call all-named-subdir-makefiles,$(exynos5_dirs))
 
