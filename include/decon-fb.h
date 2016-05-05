@@ -161,6 +161,10 @@ struct decon_win_config_data {
         struct decon_win_config config[MAX_DECON_WIN + 1];
 };
 
+#define IS_ALIGNED(x, a)		             (((x) & ((typeof(x))(a) - 1)) == 0)
+#define check_align(width, height, align)    (IS_ALIGNED(width, align) && IS_ALIGNED(height, align))
+
+#define is_yuv(format) ((format >= DECON_PIXEL_FORMAT_NV16) && (format < DECON_PIXEL_FORMAT_MAX))
 
 /* IOCTL commands */
 #define S3CFB_WIN_POSITION              _IOW('F', 203, \
