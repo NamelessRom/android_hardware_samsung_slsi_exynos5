@@ -78,4 +78,5 @@ enum ION_MSYNC_FLAGS {
     IMSYNC_SYNC_FOR_CPU = 0x20000,
 };
 
+int exynos_ion_sync_fd_partial(int fd, int handle_fd, off_t offset, size_t len);
 #endif /* _LIB_ION_DEFS_H_ */

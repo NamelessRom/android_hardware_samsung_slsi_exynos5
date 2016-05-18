@@ -17,6 +17,8 @@ include $(CLEAR_VARS)
 
 LOCAL_C_INCLUDES += $(LOCAL_PATH)/../include
 
+LOCAL_SHARED_LIBRARIES := liblog
+
 LOCAL_SRC_FILES:= \
 	libion.cpp
 

@@ -19,6 +19,8 @@
 #include <sys/mman.h>
 #include <sys/ioctl.h>
 #include <cutils/log.h>
+#include <errno.h>
+#include <string.h>
 
 typedef unsigned long ion_handle;
 
@@ -44,6 +46,15 @@ struct ion_custom_data {
     unsigned long arg;
 };
 
+typedef int ion_user_handle_t;
+
+struct ion_fd_partial_data {
+        ion_user_handle_t handle;
+        int fd;
+        off_t offset;
+        size_t len;
+};
+
 #define ION_IOC_MAGIC   'I'
 #define ION_IOC_ALLOC   _IOWR(ION_IOC_MAGIC, 0, struct ion_allocation_data)
 #define ION_IOC_FREE    _IOWR(ION_IOC_MAGIC, 1, struct ion_handle_data)
@@ -52,6 +63,7 @@ struct ion_custom_data {
 #define ION_IOC_IMPORT  _IOWR(ION_IOC_MAGIC, 5, struct ion_fd_data)
 #define ION_IOC_CUSTOM  _IOWR(ION_IOC_MAGIC, 6, struct ion_custom_data)
 #define ION_IOC_SYNC	_IOWR(ION_IOC_MAGIC, 7, struct ion_fd_data)
+#define ION_IOC_SYNC_PARTIAL    _IOWR(ION_IOC_MAGIC, 9, struct ion_fd_partial_data)
 
 struct ion_msync_data {
     long flags;
@@ -156,4 +168,26 @@ int ion_decRef(int fd, unsigned long *handle)
     data.handle = (ion_handle)handle;
 
     return ioctl(fd, ION_IOC_FREE, &data);
+}
+
+static int exynos_ion_ioctl(int fd, int req, void *arg)
+{
+    int ret = ioctl(fd, req, arg);
+    if (ret < 0) {
+        ALOGE("%s: ioctl %x failed with code %d: %s\n", __FUNCTION__, req,
+              ret, strerror(errno));
+        return -errno;
+    }
+    return ret;
+}
+
+int exynos_ion_sync_fd_partial(int fd, int handle_fd, off_t offset, size_t len)
+{
+    struct ion_fd_partial_data data = {
+        .handle = 0,
+        .fd = handle_fd,
+        .offset = offset,
+        .len = len,
+    };
+    return exynos_ion_ioctl(fd, ION_IOC_SYNC_PARTIAL, &data);
 }
