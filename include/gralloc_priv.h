@@ -67,7 +67,9 @@ struct private_module_t {
 
 /*****************************************************************************/
 
-const int numIntsDelta = 2;
+const int numIntsDelta = 0; //2;
+
+#pragma pack(push, 1)
 
 #ifdef __cplusplus
 struct private_handle_t : public native_handle {
@@ -106,12 +108,23 @@ struct private_handle_t {
     ion_user_handle_t handle1;
     ion_user_handle_t handle2;
 
-    // FIXME: the attributes below should be out-of-line
-    uint64_t base __attribute__((aligned(8)));
-    uint64_t base1 __attribute__((aligned(8)));
-    uint64_t base2 __attribute__((aligned(8)));
+    uint32_t pad; //for getting an 8byte alignment
 
-    int     exynosNumInts;
+    // FIXME: the attributes below should be out-of-line
+    uint64_t base;  //__attribute__((aligned(8)));
+    uint64_t base1; //__attribute__((aligned(8)));
+    uint64_t base2; //__attribute__((aligned(8)));
+
+    int     unknown; //__attribute__((packed));
+    int     psync_offset;
+    int     psync_len;
+
+    uint32_t unk[7];
+    uint64_t format_compression;
+    int     compression;
+    int     unknown2;
+
+    //int     exynosNumInts;
 
 //#if defined(__aarch64__)
 //    int dummy[4];
@@ -129,13 +142,14 @@ struct private_handle_t {
         fd(fd), fd1(-1), fd2(-1), magic(sMagic), flags(flags), size(size),
         offset(0), format(format), width(w), height(h), stride(stride),
         vstride(vstride), format2(format2), handle(0), handle1(0), handle2(0),
-        base(0), base1(0), base2(0)
+        base(0), base1(0), base2(0), unknown(0), psync_offset(0), psync_len(0),
+        unk({0, 0, 0, 0, 0, 0, 0}), format_compression(0), compression(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts() + 2 + numIntsDelta;
-        exynosNumInts = sNumInts() + 2;
+        //exynosNumInts = sNumInts() + 2;
         numFds = sNumFds - 2;
-        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
 
     private_handle_t(int fd, int fd1, int size, int flags, int w,
@@ -143,13 +157,14 @@ struct private_handle_t {
         fd(fd), fd1(fd1), fd2(-1), magic(sMagic), flags(flags), size(size),
         offset(0), format(format), width(w), height(h), stride(stride),
         vstride(vstride), format2(format2), handle(0), handle1(0), handle2(0),
-        base(0), base1(0), base2(0)
+        base(0), base1(0), base2(0), unknown(0), psync_offset(0), psync_len(0),
+        unk({0, 0, 0, 0, 0, 0, 0}), format_compression(0), compression(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts() + 1 + numIntsDelta;
-        exynosNumInts = sNumInts() + 1;
+        //exynosNumInts = sNumInts() + 1;
         numFds = sNumFds - 1;
-        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
 
     private_handle_t(int fd, int fd1, int fd2, int size, int flags, int w,
@@ -157,13 +172,14 @@ struct private_handle_t {
         fd(fd), fd1(fd1), fd2(fd2), magic(sMagic), flags(flags), size(size),
         offset(0), format(format), width(w), height(h), stride(stride),
         vstride(vstride), format2(format2), handle(0), handle1(0), handle2(0),
-        base(0), base1(0), base2(0)
+        base(0), base1(0), base2(0), unknown(0), psync_offset(0), psync_len(0),
+        unk({0, 0, 0, 0, 0, 0, 0}), format_compression(0), compression(0)
     {
         version = sizeof(native_handle);
         numInts = sNumInts() + numIntsDelta;
-        exynosNumInts = sNumInts();
+        //exynosNumInts = sNumInts();
         numFds = sNumFds;
-        //ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
+        ALOGD("%s gralloc numInts=%d numIntsDelta=%d", __FUNCTION__, numInts, numIntsDelta);
     }
     ~private_handle_t() {
         magic = 0;
@@ -172,9 +188,9 @@ struct private_handle_t {
     static int validate(const native_handle* h) {
         const private_handle_t* hnd = (const private_handle_t*)h;
         if (!h || h->version != sizeof(native_handle) ||
-            (hnd->numInts + hnd->numFds != sNumInts() + sNumFds + numIntsDelta &&
-             hnd->exynosNumInts + hnd->numFds != sNumInts() + sNumFds ) ||
-            hnd->magic != sMagic) 
+            (hnd->numInts + hnd->numFds != sNumInts() + sNumFds + numIntsDelta
+            //&& hnd->exynosNumInts + hnd->numFds != sNumInts() + sNumFds
+            ) || hnd->magic != sMagic)
         {
             ALOGE("gralloc: %s invalid gralloc handle (at %p)", __func__, reinterpret_cast<void *>(const_cast<native_handle *>(h)));
             //ALOGE("gralloc: version=%d(%d) numInts=%d(%d) numFds=%d(%d) magic=%d(%d)", 
@@ -194,5 +210,7 @@ struct private_handle_t {
 
 #endif
 };
+
+#pragma pack(pop)
 
 #endif /* GRALLOC_PRIV_H_ */

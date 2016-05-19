@@ -36,6 +36,7 @@
 #include <linux/ion.h>
 
 #include "exynos_format.h"
+#include "ion_defs.h"
 
 #include <dlfcn.h>
 
@@ -51,26 +52,37 @@ static int c_size_get(private_handle_t* hnd)
 
     switch(hnd->format) {
     case HAL_PIXEL_FORMAT_RGBA_8888:
-    case HAL_PIXEL_FORMAT_EXYNOS_YV12_M:
-    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_P_M:
+    case HAL_PIXEL_FORMAT_EXYNOS_YV12_M: //11c
+    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_P_M: //0x101
         vstride = hnd->vstride / 2;
         stride = ALIGN(hnd->stride / 2, 16);
         size = (vstride * stride) + 256;
         break;
 
-    case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M_FULL:
-    case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M:
-    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M:
+    case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M_FULL: //0x11e
+    case HAL_PIXEL_FORMAT_EXYNOS_YCrCb_420_SP_M: //0x11d
+    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M: //0x105
         vstride = ALIGN(hnd->vstride / 2, 8);
         stride = hnd->stride;
         size = (vstride * stride) + 256;
         break;
 
-    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M_TILED:
+    case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M_TILED: //0x107
         vstride = ALIGN(hnd->height / 2, 32);
         stride = hnd->stride;
         size = (vstride * stride) + 256;
         break;
+
+    case HAL_PIXEL_FORMAT_EXYNOS_UNK: //0x121
+        vstride = ALIGN(hnd->vstride / 2, 8);
+        stride = hnd->stride;
+        size = (vstride * stride) + 256;
+        break;
+
+    case 0x125:
+        //vstride = ALIGN(hnd->vstride / 2, 8);
+        //ALIGN(hnd->width / 4, 16);
+        size = ((hnd->height / 2) * ALIGN(hnd->width / 4, 16)) + (hnd->stride * ALIGN(hnd->vstride / 2, 8)) + 384;
 
     default:
         size = 0;
@@ -91,6 +103,7 @@ int getIonFd(gralloc_module_t const *module)
 
 int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
 {
+    void* mappedAddress = NULL;
     int size = 0;
     private_handle_t* hnd = (private_handle_t*)handle;
 
@@ -121,6 +134,7 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
 
     size = c_size_get(hnd);
 
+    //??
     if (hnd->flags & (GRALLOC_USAGE_HW_FIMC1 | GRALLOC_USAGE_PROTECTED) == GRALLOC_USAGE_PROTECTED) {
         ALOGD("%s protected mode, return 0", __FUNCTION__);
         return 0;
@@ -134,10 +148,20 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
         return 0;
     }
 
-    void* mappedAddress = mmap(0, hnd->size, PROT_READ|PROT_WRITE, MAP_SHARED,
-                               hnd->fd, 0);
+    if (hnd->format == 0x121) {
+        mappedAddress = mmap(0, 64, PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd2, 0);
+        if (mappedAddress == MAP_FAILED) {
+            ALOGE("%s: format 0x121, could not mmap fd2: %s", __FUNCTION__, strerror(errno));
+        } else {
+            //TODO: debug this
+            hnd->base2 = (uint64_t) mappedAddress;
+            ion_sync_fd(getIonFd(module), hnd->fd2);
+      }
+    }
+
+    mappedAddress = mmap(0, hnd->size, PROT_READ|PROT_WRITE, MAP_SHARED, hnd->fd, 0);
     if (mappedAddress == MAP_FAILED) {
-        ALOGE("%s: could not mmap %s", __FUNCTION__, strerror(errno));
+        ALOGE("%s: could not mmap fd: %s", __FUNCTION__, strerror(errno));
         return -errno;
     }
 
@@ -162,7 +186,7 @@ int grallocMap(gralloc_module_t const* module, buffer_handle_t handle)
         ion_sync_fd(getIonFd(module), hnd->fd1);
     }
 
-    if (hnd->fd2 >= 0) {
+    if (hnd->fd2 >= 0 && hnd->format != 0x121) {
         mappedAddress = mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED,
                              hnd->fd2, 0);
         /*if (mappedAddress == MAP_FAILED) {
@@ -187,10 +211,15 @@ int grallocUnmap(gralloc_module_t const* module, buffer_handle_t handle)
 
     ALOGD_IF(DBG_LVL > 0, "%s hnd->base=0x%x", __FUNCTION__, hnd->base);
 
-    if (!hnd->base)
-        return 0;
-
     size = c_size_get(hnd);
+
+    if (hnd->format == HAL_PIXEL_FORMAT_EXYNOS_UNK) { //0x121
+        if (munmap((void *) hnd->base2, 64) < 0) {
+            ALOGE("%s :could not unmap fd2: %s %p %d", __func__, strerror(errno),
+                  hnd->base, hnd->size);
+        }
+        hnd->base2 = 0;
+    }
 
     if (munmap((void *) hnd->base, hnd->size) < 0) {
         ALOGE("%s :could not unmap %s %p %d", __func__, strerror(errno),
@@ -297,6 +326,8 @@ int gralloc_lock(gralloc_module_t const* module,
     // flushed or invalidated depending on the usage bits and the
     // hardware.
 
+    size_t ext_size = 256;
+
     ALOGD_IF(DBG_LVL > 0, "%s usage=0x%x l=%d t=%d w=%d h=%d", __FUNCTION__,
           usage, l, t, w, h);
 
@@ -310,10 +341,30 @@ int gralloc_lock(gralloc_module_t const* module,
         return -EINVAL;
     }
 
+    if (usage & GRALLOC_USAGE_SW_WRITE_MASK) {
+        hnd->unknown = 32;
+        hnd->psync_offset = w * hnd->stride;
+        hnd->psync_len = h * hnd->stride;
+    } else {
+        hnd->unknown = 0;
+        hnd->psync_offset = 0;
+        hnd->psync_len = 0;
+    }
+
     if (!hnd->base)
         grallocMap(module, hnd);
 
     vaddr[0] = (void *)hnd->base;
+
+    switch (hnd->format) {
+    case 0x123:
+        vaddr[1] = (void *)hnd->base + (hnd->stride * hnd->vstride) + ext_size;
+        break;
+
+    case 0x126:
+        vaddr[1] = (void *)hnd->base + (hnd->stride * hnd->vstride) + 320 + (hnd->vstride * ALIGN(hnd->width / 4, 16));
+        break;
+    }
 
     if (hnd->fd1 >= 0)
         vaddr[1] = (void *)hnd->base1;
@@ -336,8 +387,13 @@ int gralloc_unlock(gralloc_module_t const* module,
     if (private_handle_t::validate(handle) < 0)
         return -EINVAL;
 
-    if (hnd->flags & GRALLOC_USAGE_SW_READ_MASK == GRALLOC_USAGE_SW_READ_OFTEN) {
-        ion_sync_fd(getIonFd(module), hnd->fd);
+    if ((hnd->flags & GRALLOC_USAGE_SW_READ_MASK == GRALLOC_USAGE_SW_READ_OFTEN) && (hnd->unknown & GRALLOC_USAGE_SW_WRITE_MASK)) {
+        if ((hnd->format == HAL_PIXEL_FORMAT_RGBA_8888 || hnd->format == HAL_PIXEL_FORMAT_RGBX_8888) && (hnd->psync_offset)) {
+            exynos_ion_sync_fd_partial(getIonFd(module), hnd->fd, 4 * hnd->psync_offset, 4 * hnd->psync_len);
+        } else {
+            ion_sync_fd(getIonFd(module), hnd->fd);
+        }
+
         if (hnd->fd1 >= 0)
             ion_sync_fd(getIonFd(module), hnd->fd1);
         if (hnd->fd2 >= 0)
@@ -364,31 +420,33 @@ int gralloc_lock_ycbcr(gralloc_module_t const* module,
         return -EINVAL;
     }
 
-    if (hnd->format2 != HAL_PIXEL_FORMAT_YCbCr_420_888) {
-        ALOGE("%s format2 is not HAL_PIXEL_FORMAT_YCbCr_420_888", __FUNCTION__);
+    memset(ycbcr, 0, sizeof(struct android_ycbcr));
+
+    switch(hnd->format) {
+    case HAL_PIXEL_FORMAT_YCrCb_420_SP:
+        ycbcr->y = (void *) hnd->base;
+        ycbcr->cb = (void *) (hnd->base + (hnd->width * hnd->height) + 1);
+        ycbcr->cr = (void *) (hnd->base + (hnd->width * hnd->height));
+        ycbcr->ystride = hnd->width;
+        ycbcr->cstride = hnd->width;
+        ycbcr->chroma_step = 2;
+        break;
+
+    case HAL_PIXEL_FORMAT_YV12:
+        ycbcr->y = (void *) hnd->base;
+        ycbcr->ystride = ALIGN(hnd->width, 16);
+        ycbcr->cstride = ALIGN( ALIGN(hnd->width, 16) / 2, 16);
+        ycbcr->cb = (void *) (hnd->base + (hnd->height * ycbcr->ystride));
+        ycbcr->cr = (void *) (ycbcr->cb + (hnd->height * ycbcr->cstride / 2) );
+        ycbcr->chroma_step = 1;
+        break;
+
+    default:
+        ALOGE("%s wrong format %d(0x%x)", __FUNCTION__, hnd->format, hnd->format);
         return -EINVAL;
     }
 
-    if (hnd->flags & (GRALLOC_USAGE_HW_CAMERA_WRITE | GRALLOC_USAGE_SW_READ_MASK)) {
-        if (hnd->format == HAL_PIXEL_FORMAT_YCrCb_420_SP) {
-            memset(ycbcr, 0, sizeof(struct android_ycbcr));
-
-            ycbcr->y = (void *) hnd->base;
-            ycbcr->cb = (void *) (hnd->base + (hnd->width * hnd->height) + 1);
-            ycbcr->cr = (void *) (hnd->base + (hnd->width * hnd->height));
-            ycbcr->ystride = hnd->width;
-            ycbcr->cstride = hnd->width;
-            ycbcr->chroma_step = 2;
-
-            ALOGD_IF(DBG_LVL > 0, "%s flags=0x%x y=0x%x cb=0x%x cr=0x%x", __FUNCTION__, hnd->flags, ycbcr->y, ycbcr->cb, ycbcr->cr);
-        } else {
-            ALOGE("%s wrong format %d", __FUNCTION__, hnd->format);
-            return -EINVAL;
-        }
-    } else {
-        ALOGE("%s wrong flags 0x%x", __FUNCTION__, hnd->flags);
-        return -EINVAL;
-    }
+    ALOGD_IF(DBG_LVL > 0, "%s format(0x%x) flags(0x%x) y(0x%x) cb(0x%x) cr(0x%x)", __FUNCTION__, hnd->format, hnd->flags, ycbcr->y, ycbcr->cb, ycbcr->cr);
 
     return 0;
 }

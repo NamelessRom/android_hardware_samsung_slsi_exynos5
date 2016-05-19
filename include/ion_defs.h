@@ -37,6 +37,7 @@
                                            world. if this is set, all cpu accesses
                                            are prohibited.
                                          */
+#define ION_FLAG_SYNC_FORCE 32		/* cache sync forcely at allocation */
 
 #define ION_HEAP_SYSTEM_ID          0
 #define ION_HEAP_EXYNOS_CONTIG_ID   4
@@ -47,12 +48,18 @@
 #define ION_HEAP_EXYNOS_CONTIG_MASK     (1 << 4)
 #define ION_HEAP_EXYNOS_MASK            (1 << 5)
 
+#define ION_EXYNOS_SECDMA_MASK        (1 << 19)
+#define ION_EXYNOS_MFC_NFW_MASK       (1 << 20)
 #define ION_EXYNOS_VIDEO_MASK         (1 << 21)
 #define ION_EXYNOS_G2D_WFD_MASK       (1 << 22)
+#define ION_EXYNOS_SECTBL_MASK        (1 << 23)
+#define ION_EXYNOS_MFC_FW_MASK        (1 << 24)
 #define ION_EXYNOS_MFC_INPUT_MASK     (1 << 25)
 #define ION_EXYNOS_MFC_OUTPUT_MASK    (1 << 26)
 #define ION_EXYNOS_GSC_MASK           (1 << 27)
 #define ION_EXYNOS_FIMD_VIDEO_MASK    (1 << 28)
+#define ION_EXYNOS_MSGBOX_SH_MASK     (1 << 29)
+#define ION_EXYNOS_MFC_SH_MASK        (1 << 30)
 #define ION_EXYNOS_VIDEO_EXT_MASK     (1 << 31)
 
 

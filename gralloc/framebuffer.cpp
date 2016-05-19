@@ -259,6 +259,43 @@ int init_fb(struct private_module_t* module)
           finfo.id, info.xres, info.yres, info.width, xdpi, info.height,
           ydpi, (float)(refreshRate / 1000));
 
+#ifdef __LP64__
+    ALOGD("Offsets 64 bit:");
+#else
+    ALOGD("Offsets 32 bit:");
+#endif
+
+    ALOGD("sizeof(private_handle_t)=%d  sizeof(native_handle_t)=%d  sizeof(int)=%d", sizeof(private_handle_t), sizeof(native_handle_t), sizeof(int));
+
+    ALOGD("fd(0x%x)", offsetof(private_handle_t, fd));
+    ALOGD("fd1(0x%x)", offsetof(private_handle_t, fd1));
+    ALOGD("fd2(0x%x)", offsetof(private_handle_t, fd2));
+    ALOGD("magic(0x%x)", offsetof(private_handle_t, magic));
+    ALOGD("flags(0x%x)", offsetof(private_handle_t, flags));
+    ALOGD("size(0x%x)", offsetof(private_handle_t, size));
+    ALOGD("offset(0x%x)", offsetof(private_handle_t, offset));
+    ALOGD("format(0x%x)", offsetof(private_handle_t, format));
+    ALOGD("width(0x%x)", offsetof(private_handle_t, width));
+    ALOGD("height(0x%x)", offsetof(private_handle_t, height));
+    ALOGD("stride(0x%x)", offsetof(private_handle_t, stride));
+    ALOGD("vstride(0x%x)", offsetof(private_handle_t, vstride));
+    ALOGD("format2(0x%x)", offsetof(private_handle_t, format2));
+    ALOGD("handle(0x%x)", offsetof(private_handle_t, handle));
+    ALOGD("handle1(0x%x)", offsetof(private_handle_t, handle1));
+    ALOGD("handle2(0x%x)", offsetof(private_handle_t, handle2));
+    ALOGD("base(0x%x)", offsetof(private_handle_t, base));
+    ALOGD("base1(0x%x)", offsetof(private_handle_t, base1));
+    ALOGD("base2(0x%x)", offsetof(private_handle_t, base2));
+    ALOGD("unknown(0x%x)", offsetof(private_handle_t, unknown));
+    ALOGD("psync_offset(0x%x)", offsetof(private_handle_t, psync_offset));
+    ALOGD("psync_len(0x%x)", offsetof(private_handle_t, psync_len));
+    ALOGD("unk(0x%x)", offsetof(private_handle_t, unk));
+    ALOGD("format_compression(0x%x)", offsetof(private_handle_t, format_compression));
+    ALOGD("compression(0x%x)", offsetof(private_handle_t, compression));
+    //ALOGD("(0x%x)", offsetof(private_handle_t, ));
+
+
+
     module->xres = info.xres;
     module->yres = info.yres;
     module->line_length = info.xres;

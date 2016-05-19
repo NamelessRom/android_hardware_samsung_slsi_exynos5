@@ -31,6 +31,7 @@
 #include <linux/ion.h>
 #include <cutils/log.h>
 #include <cutils/atomic.h>
+#include <cutils/properties.h>
 
 #include <hardware/hardware.h>
 #include <hardware/gralloc.h>
@@ -163,21 +164,25 @@ static unsigned int _select_heap(int usage)
     unsigned int heap_mask;
 
     if (usage & GRALLOC_USAGE_PROTECTED) {
-        if ( (usage & (GRALLOC_USAGE_HW_FIMC1 | GRALLOC_USAGE_HW_ION)) == GRALLOC_USAGE_HW_FIMC1)
-            heap_mask = ION_HEAP_SYSTEM_MASK;
-        else
+        if (usage & GRALLOC_USAGE_HW_FIMC1) {
+            if (usage & GRALLOC_USAGE_HW_ION)
+                heap_mask = ION_HEAP_EXYNOS_CONTIG_MASK;
+            else
+                heap_mask = ION_HEAP_SYSTEM_MASK;
+        } else {
             heap_mask = ION_HEAP_EXYNOS_CONTIG_MASK;
+        }
     } else if (usage & GRALLOC_USAGE_YUV_ADDR) {
         heap_mask = ION_HEAP_EXYNOS_CONTIG_MASK;
     } else {
         heap_mask = ION_HEAP_SYSTEM_MASK;
     }
 
-    if (usage & GRALLOC_USAGE_PRIVATE_NONECACHE)
-        return ION_HEAP_EXYNOS_CONTIG_MASK;
-    else
-        return heap_mask;
+    return heap_mask;
 }
+
+bool check_for_compression(int width, int height, int format, int usage);
+uint64_t gralloc_select_format(int format, int usage, bool compression);
 
 static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
                              unsigned int ion_flags, private_handle_t **hnd, int *stride)
@@ -186,6 +191,8 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
     int bpp = 0, vstride = 0, l_usage = usage, fd, err;
     unsigned int l_ion_flags = ion_flags;
     unsigned int heap_mask = _select_heap(usage);
+    bool compression = check_for_compression(w, h, format, usage);
+    uint64_t something = gralloc_select_format(format, usage, compression);
 
     ALOGD_IF(DBG_LVL > 0, "%s fmt=0x%x usage=0x%x w=%d h=%d ion_flags=0x%x heap_mask=0x%x", __FUNCTION__,
           format, usage, w, h, ion_flags, heap_mask);
@@ -226,32 +233,32 @@ static int gralloc_alloc_rgb(int ionfd, int w, int h, int format, int usage,
             size = bpr * vstride;
         *stride = bpr / bpp;
         size += 256;
+
+        if (compression) {
+            if (size > 0) {
+                size = ALIGN(16 * ((w / 16) * vstride / 16), 1024) + bpp * vstride * w;
+            }
+        }
     }
 
     if (usage & GRALLOC_USAGE_PROTECTED) {
         if (usage & (GRALLOC_USAGE_HW_ION | GRALLOC_USAGE_HW_FIMC1) == (GRALLOC_USAGE_HW_ION | GRALLOC_USAGE_HW_FIMC1))
             l_ion_flags |= ION_EXYNOS_G2D_WFD_MASK;
         else {
-            if (usage &  GRALLOC_USAGE_VIDEO_EXT)
+            if (usage & GRALLOC_USAGE_INTERNAL_ONLY) {
                 l_ion_flags |= ION_EXYNOS_VIDEO_EXT_MASK;
+            } else if ( !(usage & GRALLOC_USAGE_HW_COMPOSER) || usage & (GRALLOC_USAGE_HW_TEXTURE || GRALLOC_USAGE_HW_RENDER) )
+                l_ion_flags |= ION_EXYNOS_MFC_OUTPUT_MASK;
             else
-                l_ion_flags |= ION_EXYNOS_VIDEO_MASK;
-        }
+                l_ion_flags |= ION_EXYNOS_FIMD_VIDEO_MASK;
 
-        l_ion_flags |= ION_HEAP_EXYNOS_CONTIG_MASK;
+            l_ion_flags |= ION_HEAP_EXYNOS_CONTIG_MASK;
+        }
     }
 
     err = ion_alloc_fd(ionfd, size, alignment, heap_mask, l_ion_flags, &fd);
-    if (err) {
-        if (usage & GRALLOC_USAGE_PRIVATE_NONECACHE) {
-            l_usage = usage & ~GRALLOC_USAGE_PRIVATE_NONECACHE;
-            err = ion_alloc_fd(ionfd, size, alignment, _select_heap(l_usage), l_ion_flags, &fd);
-            if (err)
-                return err;
-        }
-    }
-
-    *hnd = new private_handle_t(fd, size, usage, w, h, format, format, *stride, vstride);
+    if (!err)
+        *hnd = new private_handle_t(fd, size, usage, w, h, format, format, *stride, vstride);
 
     return err;
 }
@@ -282,7 +289,7 @@ static int gralloc_alloc_framework_yuv(int ionfd, int w, int h, int format, int 
             return -EINVAL;
     }
 
-    if (format2 == HAL_PIXEL_FORMAT_YCbCr_420_888) {
+    if (format2 == HAL_PIXEL_FORMAT_YCbCr_420_888) { //0x23
         *stride = 0;
     }
 
@@ -309,38 +316,37 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
 
     *stride = ALIGN(w, 16);
 
-    if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) {
+    if (format == HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED) { //0x22
         ALOGD_IF(DBG_LVL > 0, "HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED : usage(%x), flags(%x)\n", usage, ion_flags);
 
         if ((usage & GRALLOC_USAGE_HW_CAMERA_ZSL) == GRALLOC_USAGE_HW_CAMERA_ZSL) {
-            format2 = HAL_PIXEL_FORMAT_YCbCr_422_I; // YUYV
+            format2 = HAL_PIXEL_FORMAT_YCbCr_422_I; // 0x14 YUYV
         } else {
             if (usage & (GRALLOC_USAGE_HW_VIDEO_ENCODER | GRALLOC_USAGE_HW_TEXTURE)) {
-                format2 = HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M; // NV12M
+                format2 = HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_SP_M; // 0x11D   NV12M
             } else {
-                format2 = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED;
+                format2 = HAL_PIXEL_FORMAT_IMPLEMENTATION_DEFINED; //0x22
             }
         }
-    } else {
-        if (format == HAL_PIXEL_FORMAT_YCbCr_420_888) { //0x23
-            if (usage & GRALLOC_USAGE_HW_CAMERA_WRITE) {
-                format2 = HAL_PIXEL_FORMAT_YCrCb_420_SP;
-            } else {
-                ALOGD("%s: HAL_PIXEL_FORMAT_YCbCr_420_888", __FUNCTION__);
-            }
-        }
+    } else if (format == HAL_PIXEL_FORMAT_YCbCr_420_888) { //0x23
+            format2 = HAL_PIXEL_FORMAT_YCrCb_420_SP; //0x11
     }
 
     if (usage & GRALLOC_USAGE_PROTECTED) {
-        if (usage & GRALLOC_USAGE_FOREIGN_BUFFERS) {
+        if (usage & GRALLOC_USAGE_INTERNAL_ONLY) {
             ion_flags |= ION_EXYNOS_VIDEO_EXT_MASK;
+        } else if (usage & GRALLOC_USAGE_PRIVATE_NONECACHE ) {
+            ion_flags |= ION_EXYNOS_MSGBOX_SH_MASK;
+        } else if ( (usage & GRALLOC_USAGE_RENDERSCRIPT) || (usage & (GRALLOC_USAGE_HW_TEXTURE | GRALLOC_USAGE_HW_RENDER)) ) {
+            ion_flags |= ION_EXYNOS_MFC_OUTPUT_MASK;
         } else {
-            ion_flags |= ION_EXYNOS_VIDEO_MASK;
+            ion_flags |= ION_EXYNOS_FIMD_VIDEO_MASK;
         }
+
         ion_flags |= ION_HEAP_EXYNOS_CONTIG_MASK;
     } else {
-        if (usage & GRALLOC_USAGE_PRIVATE_2) {
-            ion_flags |= ION_EXYNOS_VIDEO_MASK;
+        if (usage & GRALLOC_USAGE_YUV_ADDR) {
+            ion_flags |= ION_EXYNOS_MFC_OUTPUT_MASK;
         }
     }
 
@@ -377,7 +383,8 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
             }
         case HAL_PIXEL_FORMAT_YV12: //0x32315659
         case HAL_PIXEL_FORMAT_YCrCb_420_SP: //0x11
-            return gralloc_alloc_framework_yuv(ionfd, w, h, format, format2, usage,
+        case HAL_PIXEL_FORMAT_EXYNOS_YCbCr_420_P: //0x11f
+            return gralloc_alloc_framework_yuv(ionfd, w, h, format2, format, usage,
                                                ion_flags, hnd, stride);
         case HAL_PIXEL_FORMAT_YCbCr_422_I: //0x14
             {
@@ -387,14 +394,59 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
                 planes = 1;
                 break;
             }
+
+        case 0x123:
+            {
+                luma_vstride = ALIGN(h, 16);
+                chroma_size = ALIGN(((luma_vstride * *stride / 2) + 256), 16);
+                luma_size = (luma_vstride * *stride) + 256 + chroma_size;
+                planes = 1;
+                break;
+            }
+
+        case HAL_PIXEL_FORMAT_EXYNOS_UNK: //0x121
+            {
+                luma_vstride = ALIGN(h, 16);
+                chroma_size = (luma_vstride * *stride / 2) + 256;
+                luma_size = luma_vstride * *stride + 256;
+                planes = 3;
+            }
+
+        case 0x126:
+            {
+                luma_vstride = ALIGN(h, 16);
+                chroma_size = (luma_vstride * ALIGN(w / 4, 16) / 2) + 64 + (ALIGN(((luma_vstride * *stride / 2) + 256), 16));
+                luma_size = chroma_size + ( luma_vstride * (ALIGN(w / 4, 16) + *stride) ) + 320;
+                planes = 1;
+            }
+
+        case 0x125:
+            {
+                luma_vstride = ALIGN(h, 16);
+                luma_size = (luma_vstride * *stride) + (h * ALIGN(w / 4, 16)) + 384;
+                chroma_size = (ALIGN(w / 4, 16) * (h / 2)) + (*stride * (luma_vstride / 2)) + 384;
+                planes = 2;
+            }
+
         default:
             ALOGE("%s invalid yuv format %d\n", __FUNCTION__, format);
             return -EINVAL;
     }
 
     err = ion_alloc_fd(ionfd, luma_size, 0, heap_mask, ion_flags, &fd);
-    if (err)
-        return err;
+    if (err) {
+        if (usage & GRALLOC_USAGE_PRIVATE_NONECACHE) {
+            ion_flags &= ~ION_EXYNOS_MSGBOX_SH_MASK;
+            ion_flags |= ION_EXYNOS_MFC_OUTPUT_MASK;
+
+            err = ion_alloc_fd(ionfd, luma_size, 0, heap_mask, ion_flags, &fd);
+            if (err)
+                return err;
+        } else {
+            return err;
+        }
+    }
+
     if (planes == 1) {
          ALOGD_IF(DBG_LVL > 0, "%s planes=%d size=%d", __FUNCTION__, planes, luma_size);
         *hnd = new private_handle_t(fd, luma_size, usage, w, h,
@@ -403,9 +455,16 @@ static int gralloc_alloc_yuv(int ionfd, int w, int h, int format,
         err = ion_alloc_fd(ionfd, chroma_size, 0, heap_mask, ion_flags, &fd1);
         if (err)
             goto err1;
+
         if (planes == 3) {
             ALOGD_IF(DBG_LVL > 0, "%s planes=%d luma_size=%d chroma_size=%d", __FUNCTION__, planes, luma_size, chroma_size);
-            err = ion_alloc_fd(ionfd, chroma_size, 0, heap_mask, ion_flags, &fd2);
+
+            if (format2 == 0x121) {
+                err = ion_alloc_fd(ionfd, 64, 0, ION_HEAP_SYSTEM_MASK, ion_flags, &fd2);
+            } else {
+                err = ion_alloc_fd(ionfd, chroma_size, 0, heap_mask, ion_flags, &fd2);
+            }
+
             if (err)
                 goto err2;
 
@@ -449,25 +508,21 @@ static int gralloc_alloc(alloc_device_t* dev,
 
     if ( (l_usage & GRALLOC_USAGE_SW_READ_MASK) == GRALLOC_USAGE_SW_READ_OFTEN ) {
         ion_flags = ION_FLAG_CACHED | ION_FLAG_CACHED_NEEDS_SYNC;
-#if defined(__aarch64__)
         if (l_usage & GRALLOC_USAGE_HW_RENDER)
-            ion_flags |= 0x20;
-#endif
+            ion_flags |= ION_FLAG_SYNC_FORCE;
     }
 
     if (l_usage & GRALLOC_USAGE_CAMERA)
         ion_flags |= ION_FLAG_NOZEROED;
 
-    if (l_usage & GRALLOC_USAGE_PRIVATE_NONECACHE) {
-        if ((w * h) != (m->xres * m->yres)) /* TODO: check this */
-            l_usage |= ~GRALLOC_USAGE_PRIVATE_NONECACHE;
-    }
+    //if (l_usage & GRALLOC_USAGE_PRIVATE_NONECACHE) {
+    //    if ((w * h) != (m->xres * m->yres)) /* TODO: check this */
+    //        l_usage |= ~GRALLOC_USAGE_PRIVATE_NONECACHE;
+    //}
 
-    err = gralloc_alloc_rgb(m->ionfd, w, h, format, l_usage, ion_flags, &hnd,
-                            &stride);
+    err = gralloc_alloc_rgb(m->ionfd, w, h, format, l_usage, ion_flags, &hnd, &stride);
     if (err)
-        err = gralloc_alloc_yuv(m->ionfd, w, h, format, l_usage, ion_flags,
-                                &hnd, &stride);
+        err = gralloc_alloc_yuv(m->ionfd, w, h, format, l_usage, ion_flags, &hnd, &stride);
     if (err)
         goto err;
 
@@ -569,4 +624,57 @@ int gralloc_device_open(const hw_module_t* module, const char* name,
         status = fb_device_open(module, name, device);
     }
     return status;
+}
+
+bool check_for_compression(int width, int height, int format, int usage)
+{
+    bool result = false;
+    int afbc;
+
+    char value[PROPERTY_VALUE_MAX];
+    property_get("ddk.set.afbc", value, "0");
+    afbc = atoi(value);
+
+    switch(format) {
+    case HAL_PIXEL_FORMAT_YV12:
+    case HAL_PIXEL_FORMAT_RGBA_8888:
+    case HAL_PIXEL_FORMAT_RGBX_8888:
+    case HAL_PIXEL_FORMAT_RGB_888:
+    case HAL_PIXEL_FORMAT_RGB_565:
+    case HAL_PIXEL_FORMAT_BGRA_8888:
+        if (afbc) {
+            if (width & 0xf)
+                result = false;
+            else
+                if (width > 144 && height > 144 && (usage & GRALLOC_USAGE_SW_READ_MASK) != GRALLOC_USAGE_SW_READ_OFTEN)
+                    if (usage & (GRALLOC_USAGE_HW_FB | GRALLOC_USAGE_HW_COMPOSER | GRALLOC_USAGE_HW_RENDER | GRALLOC_USAGE_HW_TEXTURE))
+                        return true;
+                    else
+                        return false;
+        }
+        break;
+    }
+
+    return false;
+}
+
+uint64_t gralloc_select_format(int format, int usage, bool compression)
+{
+    uint64_t result = 0LL;
+
+    if (format) {
+        result = format;
+
+        if (usage & (GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK)) {
+            result |= (((uint64_t)format >> 31) << 32);
+            ALOGD("%s: GRALLOC_USAGE_SW_READ_MASK | GRALLOC_USAGE_SW_WRITE_MASK format(0x%llX) result(0x%llX)", __FUNCTION__, format, result);
+        } else {
+            if (usage && compression) {
+                result |= (1LL << 32);
+                ALOGD("%s: usage && compression format(0x%llX) result(0x%llX)", __FUNCTION__, format, result);
+            }
+        }
+    }
+
+    return result;
 }
